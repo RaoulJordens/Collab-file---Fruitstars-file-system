@@ -1,0 +1,5 @@
+{
+  "name": "CollabFile - AI-Powered File System",
+  "description": "A collaborative file management system that uses AI to automatically sort and label files. Create project-specific folders, upload files, and manage team collaborators with role-based permissions.",
+  "requestFramePermissions": []
+}
