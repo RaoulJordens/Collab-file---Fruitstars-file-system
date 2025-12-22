@@ -1,18 +1,14 @@
 
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { differenceInDays, isFuture, parse, format } from 'date-fns';
 import type { File, Folder, SearchResultItem } from '../types';
-import { AlertCircle, Ship, Box, Upload, FolderPlus, Search, Trash2, ChevronRight, MenuIcon } from './Icons';
+import { AlertCircle, Ship, Box, Upload, FolderPlus, Search, MenuIcon } from './Icons';
 import { UploadDialog } from './UploadDialog';
 import { NewFolderDialog } from './NewFolderDialog';
 import { DossierStatusIcons } from './DossierStatusIcons';
 import { Button, Input } from './UI';
 import { SearchResults } from './SearchResults';
-import { backendSpecContent } from '../backend_copilot_spec';
-import { deploymentGuideContent } from '../deployment_guide';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-
 
 interface ExpiringFile extends File {
   supplierName?: string;
@@ -30,6 +26,7 @@ interface DashboardProps {
   onClearSearch: () => void;
   isMobile: boolean;
   onMenuClick: () => void;
+  canEdit: boolean;
 }
 
 export function Dashboard({ 
@@ -43,15 +40,13 @@ export function Dashboard({
     onResultClick,
     onClearSearch,
     isMobile,
-    onMenuClick
+    onMenuClick,
+    canEdit
 }: DashboardProps) {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
   const [newFolderTarget, setNewFolderTarget] = useState<Folder | null>(null);
   const [localQuery, setLocalQuery] = useState(searchQuery);
-  const [showBackendTodo, setShowBackendTodo] = useState(true);
-  const [showDeployGuide, setShowDeployGuide] = useState(true);
-  const [copyButtonText, setCopyButtonText] = useState('Copy to Clipboard');
   
   const isSmallScreen = useMediaQuery('(max-width: 640px)');
 
@@ -63,19 +58,6 @@ export function Dashboard({
     if (e.key === 'Enter') {
       onSearch(localQuery);
     }
-  };
-  
-  const handleCopy = (content: string) => {
-    navigator.clipboard.writeText(content.trim())
-      .then(() => {
-        setCopyButtonText('Copied!');
-        setTimeout(() => setCopyButtonText('Copy to Clipboard'), 2000);
-      })
-      .catch(err => {
-        console.error('Failed to copy text: ', err);
-        setCopyButtonText('Failed to copy');
-         setTimeout(() => setCopyButtonText('Copy to Clipboard'), 2000);
-      });
   };
 
   const expiringCertificates = useMemo(() => {
@@ -116,7 +98,6 @@ export function Dashboard({
     <>
       {isMobile && (
         <div className="flex items-center p-4 border-b gap-4">
-            {/* FIX: The Button component requires children. Added MenuIcon as a child. */}
             <Button onClick={onMenuClick} variant="secondary" className="!p-2 !h-10 !w-10">
                 <MenuIcon />
             </Button>
@@ -127,25 +108,27 @@ export function Dashboard({
         {!isMobile && (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-            {!searchQuery && (
+            {!searchQuery && canEdit && (
               <div className="flex items-center gap-2 flex-wrap justify-end">
-                {/* FIX: The Button component requires children. Added text and an icon. */}
                 <Button onClick={() => setIsUploadOpen(true)}>
                   <Upload className="mr-2 h-4 w-4" />
                   Upload File
                 </Button>
-                {/* FIX: The Button component requires children. Added text and an icon. */}
                 <Button variant="secondary" onClick={() => handleNewFolderClick(clientsFolder)}>
                     <FolderPlus className="mr-2 h-4 w-4" /> New Client
                 </Button>
-                {/* FIX: The Button component requires children. Added text and an icon. */}
                 <Button variant="secondary" onClick={() => handleNewFolderClick(suppliersFolder)}>
                     <FolderPlus className="mr-2 h-4 w-4" /> New Supplier
                 </Button>
-                {/* FIX: The Button component requires children. Added text and an icon. */}
                 <Button variant="secondary" onClick={() => handleNewFolderClick(containerFolder)}>
                     <FolderPlus className="mr-2 h-4 w-4" /> New Container
                 </Button>
+              </div>
+            )}
+            {!searchQuery && !canEdit && (
+              <div className="px-3 py-1 bg-muted rounded-full text-xs font-medium text-muted-foreground border flex items-center gap-2">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                 Read Only Access
               </div>
             )}
           </div>
@@ -170,54 +153,6 @@ export function Dashboard({
           />
         ) : (
           <>
-            {(showBackendTodo || showDeployGuide) && (
-               <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                 <div className="p-6">
-                    <h3 className="text-lg font-medium mb-4">Developer To-Do List</h3>
-                    <div className="space-y-4">
-                      {showBackendTodo && (
-                        <details className="group border-b border-border pb-4">
-                            <summary className="cursor-pointer list-none flex items-center justify-between text-md font-medium text-foreground">
-                                <span className="pr-2">1. Backend Specification for GitHub Copilot</span>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {/* FIX: The Button component requires children. Added button text. */}
-                                  <Button variant="secondary" onClick={(e) => {e.preventDefault(); handleCopy(backendSpecContent)}} className="h-8 px-2 py-1 text-xs">{copyButtonText}</Button>
-                                  {/* FIX: The Button component requires children. Added Trash2 icon as a child. */}
-                                  <Button variant="secondary" onClick={(e) => {e.preventDefault(); setShowBackendTodo(false)}} className="h-8 w-8 p-0"><Trash2 className="h-4 w-4" /></Button>
-                                  <ChevronRight className="h-5 w-5 transition-transform group-open:rotate-90" />
-                                </div>
-                            </summary>
-                            <div className="mt-4 relative bg-muted/50 p-4 rounded-md">
-                                <pre className="whitespace-pre-wrap text-xs text-muted-foreground max-h-60 overflow-y-auto font-mono">
-                                    <code>{backendSpecContent.trim()}</code>
-                                </pre>
-                            </div>
-                        </details>
-                      )}
-                      {showDeployGuide && (
-                        <details className="group">
-                            <summary className="cursor-pointer list-none flex items-center justify-between text-md font-medium text-foreground">
-                                <span className="pr-2">2. Deployment & Integration Guide</span>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {/* FIX: The Button component requires children. Added button text. */}
-                                  <Button variant="secondary" onClick={(e) => {e.preventDefault(); handleCopy(deploymentGuideContent)}} className="h-8 px-2 py-1 text-xs">{copyButtonText}</Button>
-                                  {/* FIX: The Button component requires children. Added Trash2 icon as a child. */}
-                                  <Button variant="secondary" onClick={(e) => {e.preventDefault(); setShowDeployGuide(false)}} className="h-8 w-8 p-0"><Trash2 className="h-4 w-4" /></Button>
-                                  <ChevronRight className="h-5 w-5 transition-transform group-open:rotate-90" />
-                                </div>
-                            </summary>
-                            <div className="mt-4 relative bg-muted/50 p-4 rounded-md">
-                                <pre className="whitespace-pre-wrap text-xs text-muted-foreground max-h-60 overflow-y-auto font-mono">
-                                    <code>{deploymentGuideContent.trim()}</code>
-                                </pre>
-                            </div>
-                        </details>
-                      )}
-                    </div>
-                 </div>
-               </div>
-            )}
-
             <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
               <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
                 <h3 className="text-lg font-medium flex items-center gap-2">

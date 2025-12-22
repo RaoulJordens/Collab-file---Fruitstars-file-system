@@ -1,8 +1,8 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { FolderIcon, FileIcon as DefaultFileIcon, CalendarIcon, ArrowUp, ArrowDown, ChevronRight } from './Icons';
 import { FileActions } from './FileActions';
+import { FolderActions } from './FolderActions';
 import type { File, Folder, Label } from '../types';
 import { parse, isPast, isToday, format } from 'date-fns';
 import { DossierStatusIcons } from './DossierStatusIcons';
@@ -30,6 +30,8 @@ interface FileBrowserProps {
   onAddLabel: (fileId: string, label: Label) => Promise<void>;
   onMoveFile: (fileId: string, targetFolderId: string) => Promise<void>;
   onDeleteFile: (fileId: string) => Promise<void>;
+  onDeleteFolder: (folderId: string) => Promise<void>;
+  canEdit: boolean;
 }
 
 const getFileIcon = (file: File) => {
@@ -51,7 +53,7 @@ const getExpirationStatusColor = (dateString: string) => {
     return "text-muted-foreground";
 }
 
-const SortableHeader = ({ children, sortKey, currentSort, onSort }: { children: React.ReactNode, sortKey: SortKey, currentSort: {key: SortKey, dir: SortDirection}, onSort: (key: SortKey) => void }) => (
+const SortableHeader = ({ children, sortKey, currentSort, onSort }: { children?: React.ReactNode, sortKey: SortKey, currentSort: {key: SortKey, dir: SortDirection}, onSort: (key: SortKey) => void }) => (
     <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => onSort(sortKey)}>
         <div className="flex items-center gap-2">
             {children}
@@ -60,7 +62,7 @@ const SortableHeader = ({ children, sortKey, currentSort, onSort }: { children: 
     </th>
 );
 
-export function FileBrowser({ currentFolder, rootFolder, path, onFolderClick, onAddLabel, onMoveFile, onDeleteFile }: FileBrowserProps) {
+export function FileBrowser({ currentFolder, rootFolder, path, onFolderClick, onAddLabel, onMoveFile, onDeleteFile, onDeleteFolder, canEdit }: FileBrowserProps) {
   const [filter, setFilter] = useState('');
   const [sort, setSort] = useState<{key: SortKey, dir: SortDirection}>({key: 'name', dir: 'asc'});
   
@@ -83,7 +85,6 @@ export function FileBrowser({ currentFolder, rootFolder, path, onFolderClick, on
             const dateB = 'lastModified' in b ? parse(b.lastModified, 'MM/dd/yyyy', new Date()).getTime() : 0;
             return sort.dir === 'asc' ? dateA - dateB : dateB - dateA;
         }
-        // Default to name sort
         const nameA = a.name.toLowerCase();
         const nameB = b.name.toLowerCase();
         if (nameA < nameB) return sort.dir === 'asc' ? -1 : 1;
@@ -103,18 +104,21 @@ export function FileBrowser({ currentFolder, rootFolder, path, onFolderClick, on
     return (
       <div className="space-y-4">
         <Input 
-            placeholder="Filter files and folders..."
+            placeholder="Filter items..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
         />
         <div className="space-y-2">
            {filteredAndSortedItems.map(item => 'subFolders' in item ? (
-                <div key={item.id} onClick={() => onFolderClick(item.id)} className="bg-card border rounded-lg p-3 flex items-center justify-between cursor-pointer hover:bg-muted/50">
-                    <div className="flex items-center gap-3">
+                <div key={item.id} className="bg-card border rounded-lg p-3 flex items-center justify-between hover:bg-muted/50">
+                    <div className="flex items-center gap-3 cursor-pointer flex-1" onClick={() => onFolderClick(item.id)}>
                         <FolderIcon className="h-6 w-6 text-muted-foreground" />
                         <span className="font-medium">{item.name}</span>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex items-center gap-1">
+                      {canEdit && <FolderActions folder={item} onDeleteFolder={onDeleteFolder} />}
+                      <ChevronRight className="h-5 w-5 text-muted-foreground cursor-pointer" onClick={() => onFolderClick(item.id)} />
+                    </div>
                 </div>
            ) : (
                 <div key={item.id} className="bg-card border rounded-lg p-3 space-y-2">
@@ -126,7 +130,7 @@ export function FileBrowser({ currentFolder, rootFolder, path, onFolderClick, on
                                 <p className="text-sm text-muted-foreground">{item.size} &middot; {item.lastModified}</p>
                             </div>
                         </div>
-                        <FileActions file={item} rootFolder={rootFolder} path={path} onAddLabel={onAddLabel} onMoveFile={onMoveFile} onDeleteFile={onDeleteFile} />
+                        {canEdit && <FileActions file={item} rootFolder={rootFolder} path={path} onAddLabel={onAddLabel} onMoveFile={onMoveFile} onDeleteFile={onDeleteFile} />}
                     </div>
                     <div className="flex flex-wrap gap-1">
                         {item.labels.map(label => (
@@ -143,7 +147,7 @@ export function FileBrowser({ currentFolder, rootFolder, path, onFolderClick, on
   return (
     <div className="space-y-4">
       <Input 
-        placeholder="Filter files and folders in this view..."
+        placeholder="Filter results..."
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
         className="max-w-xs"
@@ -152,10 +156,8 @@ export function FileBrowser({ currentFolder, rootFolder, path, onFolderClick, on
         <table className="w-full caption-bottom text-sm">
           <thead className="[&_tr]:border-b">
             <tr className="border-b">
-              {/* FIX: The SortableHeader component requires children. Added text content. */}
               <SortableHeader sortKey="name" currentSort={sort} onSort={handleSort}>Name</SortableHeader>
               {showStatusColumn && <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>}
-              {/* FIX: The SortableHeader component requires children. Added text content. */}
               <SortableHeader sortKey="lastModified" currentSort={sort} onSort={handleSort}>Last Modified</SortableHeader>
               <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Expires</th>
               <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Size</th>
@@ -168,15 +170,20 @@ export function FileBrowser({ currentFolder, rootFolder, path, onFolderClick, on
                 <tr><td colSpan={7} className="text-center p-12 text-muted-foreground">This folder is empty.</td></tr>
             ) : (
                 filteredAndSortedItems.map(item => 'subFolders' in item ? (
-                    <tr key={item.id} className="cursor-pointer border-b hover:bg-muted/50" onClick={() => onFolderClick(item.id)}>
-                        <td className="p-4 font-medium"><div className="flex items-center gap-3"><FolderIcon className="h-5 w-5" /><span>{item.name}</span></div></td>
+                    <tr key={item.id} className="border-b hover:bg-muted/50">
+                        <td className="p-4 font-medium cursor-pointer" onClick={() => onFolderClick(item.id)}>
+                          <div className="flex items-center gap-3"><FolderIcon className="h-5 w-5" /><span>{item.name}</span></div>
+                        </td>
                         {showStatusColumn && <td className="p-4">
                             {isDossierList && currentFolder.name === 'Container' && <DossierStatusIcons dossier={item} type="Container" />}
                             {isDossierList && currentFolder.name === 'Residuals' && <DossierStatusIcons dossier={item} type="Residuals" />}
                             {isClientList && <DossierStatusIcons dossier={item} type="Client" />}
                             {isSupplierList && <DossierStatusIcons dossier={item} type="Supplier" />}
                         </td>}
-                        <td colSpan={5}></td>
+                        <td colSpan={4} onClick={() => onFolderClick(item.id)} className="cursor-pointer"></td>
+                        <td className="p-4">
+                          {canEdit && <FolderActions folder={item} onDeleteFolder={onDeleteFolder} />}
+                        </td>
                     </tr>
                 ) : (
                     <tr key={item.id} className="border-b">
@@ -199,7 +206,7 @@ export function FileBrowser({ currentFolder, rootFolder, path, onFolderClick, on
                                 ))}
                             </div>
                         </td>
-                        <td className="p-4"><FileActions file={item} rootFolder={rootFolder} path={path} onAddLabel={onAddLabel} onMoveFile={onMoveFile} onDeleteFile={onDeleteFile} /></td>
+                        <td className="p-4">{canEdit && <FileActions file={item} rootFolder={rootFolder} path={path} onAddLabel={onAddLabel} onMoveFile={onMoveFile} onDeleteFile={onDeleteFile} />}</td>
                     </tr>
                 ))
             )}

@@ -17,20 +17,23 @@ interface MainPanelProps {
   onDeleteFile: (fileId: string) => Promise<void>;
   onAddFolder: (parentId: string, folderName: string, details: Partial<Folder>) => Promise<void>;
   onUpdateFolder: (folderId: string, updates: Partial<Folder>) => Promise<void>;
+  onDeleteFolder: (folderId: string) => Promise<void>;
   onMenuClick: () => void;
   isMobile: boolean;
+  canEdit: boolean;
 }
 
-export function MainPanel({ currentFolder, rootFolder, path, onFolderClick, onNavigate, onAddLabel, onMoveFile, onAddFile, onDeleteFile, onAddFolder, onUpdateFolder, onMenuClick, isMobile }: MainPanelProps) {
+export function MainPanel({ currentFolder, rootFolder, path, onFolderClick, onNavigate, onAddLabel, onMoveFile, onAddFile, onDeleteFile, onAddFolder, onUpdateFolder, onDeleteFolder, onMenuClick, isMobile, canEdit }: MainPanelProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [draggedFile, setDraggedFile] = useState<globalThis.File | null>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (!canEdit) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
-  }, []);
+  }, [canEdit]);
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -39,6 +42,7 @@ export function MainPanel({ currentFolder, rootFolder, path, onFolderClick, onNa
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (!canEdit) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
@@ -47,11 +51,11 @@ export function MainPanel({ currentFolder, rootFolder, path, onFolderClick, onNa
       setIsUploadOpen(true);
       e.dataTransfer.clearData();
     }
-  }, []);
+  }, [canEdit]);
   
   const handleUploadDialogClose = () => {
       setIsUploadOpen(false);
-      setDraggedFile(null); // Reset dragged file when dialog is closed
+      setDraggedFile(null);
   }
 
   return (
@@ -77,8 +81,10 @@ export function MainPanel({ currentFolder, rootFolder, path, onFolderClick, onNa
         onAddFile={onAddFile} 
         onAddFolder={onAddFolder} 
         onUpdateFolder={onUpdateFolder}
+        onDeleteFolder={onDeleteFolder}
         onMenuClick={onMenuClick}
         isMobile={isMobile}
+        canEdit={canEdit}
       />
       <FileBrowser
         currentFolder={currentFolder}
@@ -88,6 +94,8 @@ export function MainPanel({ currentFolder, rootFolder, path, onFolderClick, onNa
         onAddLabel={onAddLabel}
         onMoveFile={onMoveFile}
         onDeleteFile={onDeleteFile}
+        onDeleteFolder={onDeleteFolder}
+        canEdit={canEdit}
       />
       <UploadDialog
         isOpen={isUploadOpen}

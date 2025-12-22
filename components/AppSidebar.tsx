@@ -1,8 +1,7 @@
 
-
 import React, { useState } from 'react';
 import { LayoutDashboard, FolderIcon, ChevronRight, Settings, Users, Building, Package, Ship, ClipboardList, PanelLeft, FruitstarsIcon } from './Icons';
-import type { Folder as FolderType } from '../types';
+import type { Folder as FolderType, Collaborator } from '../types';
 import { Dialog } from './UI';
 
 
@@ -15,6 +14,7 @@ interface AppSidebarProps {
   isMobile: boolean;
   isMobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
+  currentUser: Collaborator;
 }
 
 interface NavItem {
@@ -74,7 +74,7 @@ function FolderTree({ item, level, activeFolderId, onSelectFolder, isCollapsed }
 }
 
 
-const SidebarContent = ({ data, activeFolderId, onSelectFolder, isCollapsed, setIsCollapsed, setMobileMenuOpen }: Omit<AppSidebarProps, 'isMobile' | 'isMobileMenuOpen'>) => {
+const SidebarContent = ({ data, activeFolderId, onSelectFolder, isCollapsed, setIsCollapsed, setMobileMenuOpen, currentUser }: Omit<AppSidebarProps, 'isMobile' | 'isMobileMenuOpen'>) => {
     const navItems: NavItem[] = [
         { id: 'root', name: 'Dashboard', icon: <LayoutDashboard className="h-5 w-5" />, subFolders: [] },
         { id: 'f1', name: 'Clients', icon: <Users className="h-5 w-5" />, subFolders: [] },
@@ -95,7 +95,7 @@ const SidebarContent = ({ data, activeFolderId, onSelectFolder, isCollapsed, set
                 {!isCollapsed && 
                 <div className="flex items-center gap-2">
                     <FruitstarsIcon className="h-7 w-7" />
-                    <span className="text-lg font-semibold text-foreground">FruitstarsFileSystem</span>
+                    <span className="text-lg font-semibold text-foreground">Fruitstars FS</span>
                 </div>
                 }
                 <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1 rounded hover:bg-muted hidden md:block">
@@ -119,6 +119,16 @@ const SidebarContent = ({ data, activeFolderId, onSelectFolder, isCollapsed, set
                 </ul>
             </nav>
 
+            <div className="p-4 border-t flex items-center gap-3">
+               <img src={currentUser.avatarUrl} alt={currentUser.name} className="h-8 w-8 rounded-full border bg-muted" />
+               {!isCollapsed && (
+                 <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{currentUser.name}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{currentUser.role}</p>
+                 </div>
+               )}
+            </div>
+
             <div className="p-2 border-t">
                 <button 
                     onClick={() => onSelectFolder('settings')}
@@ -137,7 +147,6 @@ export function AppSidebar(props: AppSidebarProps) {
 
   if (isMobile) {
     return (
-      // FIX: The Dialog component requires children. SidebarContent is now passed as a child.
       <Dialog 
         isOpen={isMobileMenuOpen}
         onOpenChange={setMobileMenuOpen}

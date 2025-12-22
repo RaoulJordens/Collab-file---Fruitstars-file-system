@@ -1,18 +1,51 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppSidebar } from './components/AppSidebar';
 import { MainPanel } from './components/MainPanel';
 import { Dashboard } from './components/Dashboard';
 import { ShipmentsView } from './components/ShipmentsView';
 import { SettingsPage } from './components/SettingsPage';
-import type { Folder, Label, File, SearchResultItem } from './types';
+import { LoginView } from './components/LoginView';
+import type { Folder, Label, File, SearchResultItem, Collaborator } from './types';
 import { initialData, findFolderById, findParentFolder } from './constants';
 import { useMediaQuery } from './hooks/useMediaQuery';
 
 // Helper to simulate network delay
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+interface UserAccount extends Collaborator {
+  email: string;
+  password?: string;
+  status: 'Approved' | 'Pending';
+}
+
+const ADMIN_EMAIL = 'sales@fruitstars.net';
+const ADMIN_PASS = 'SaxEde98!';
+
+const INITIAL_USERS: UserAccount[] = [
+  {
+    id: 'admin-1',
+    name: 'Admin Sales',
+    email: ADMIN_EMAIL,
+    password: ADMIN_PASS,
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin',
+    role: 'Owner',
+    status: 'Approved'
+  },
+  {
+    id: 'u1',
+    name: 'Alex Doe',
+    email: 'alex.doe@fruitstars.com',
+    password: 'password123',
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex',
+    role: 'Edit',
+    status: 'Approved' 
+  }
+];
+
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAIInitialized, setIsAIInitialized] = useState(false);
   const [data, setData] = useState<Folder>(initialData);
   const [activeFolderId, setActiveFolderId] = useState<string>(initialData.id);
   const [path, setPath] = useState<Folder[]>([]);
@@ -23,8 +56,85 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   
+  // User Management State
+  const [users, setUsers] = useState<UserAccount[]>(INITIAL_USERS);
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  
   const isMobile = useMediaQuery('(max-width: 768px)');
 
+  // AI Security Check
+  useEffect(() => {
+    async function checkSecurity() {
+      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setIsAIInitialized(hasKey);
+      } else {
+        setIsAIInitialized(true);
+      }
+    }
+    checkSecurity();
+  }, [isAuthenticated]);
+
+  const handleLogin = async (email: string, password?: string) => {
+    await sleep(800);
+    const user = users.find(u => u.email === email && u.password === password);
+    
+    if (user) {
+      if (user.status === 'Pending') {
+        throw new Error("Your account is pending approval by an administrator.");
+      }
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+      return;
+    }
+    throw new Error("Invalid credentials.");
+  };
+
+  const handleSignUp = async (name: string, email: string, password?: string) => {
+    await sleep(1000);
+    if (users.some(u => u.email === email)) {
+      throw new Error("User already exists with this email.");
+    }
+    const newUser: UserAccount = {
+      id: `user-${Date.now()}`,
+      name,
+      email,
+      password,
+      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+      role: 'View',
+      status: 'Pending'
+    };
+    setUsers(prev => [...prev, newUser]);
+  };
+
+  const handleResetPassword = async (email: string, newPassword?: string) => {
+    await sleep(1000);
+    setUsers(prev => prev.map(u => u.email === email ? { ...u, password: newPassword } : u));
+  };
+
+  const handleApproveUser = async (userId: string) => {
+    await sleep(500);
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'Approved' } : u));
+  };
+
+  const handleRejectUser = async (userId: string) => {
+    await sleep(500);
+    setUsers(prev => prev.filter(u => u.id !== userId));
+  };
+
+  const handleInitializeAI = async () => {
+    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+      await window.aistudio.openSelectKey();
+      setIsAIInitialized(true);
+    } else {
+      setIsAIInitialized(true);
+    }
+  };
+
+  const handleSignOut = () => {
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+  };
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -66,6 +176,10 @@ export default function App() {
 
   }, [activeFolderId, data]);
 
+  const canEdit = useMemo(() => {
+    return currentUser?.role === 'Owner' || currentUser?.role === 'Edit';
+  }, [currentUser]);
+
   const handleSelectFolder = useCallback((id: string) => {
     setActiveFolderId(id);
     if (isMobile) {
@@ -74,7 +188,8 @@ export default function App() {
   }, [isMobile]);
 
   const handleAddLabel = useCallback(async (fileId: string, label: Label) => {
-    await sleep(500); // Simulate network delay
+    if (!canEdit) return;
+    await sleep(500); 
     setData(prevData => {
         const newData = JSON.parse(JSON.stringify(prevData));
         const findAndAddLabel = (folder: Folder): boolean => {
@@ -93,10 +208,11 @@ export default function App() {
         findAndAddLabel(newData);
         return newData;
     });
-  }, []);
+  }, [canEdit]);
 
   const handleMoveFile = useCallback(async (fileId: string, targetFolderId: string) => {
-    await sleep(500); // Simulate network delay
+    if (!canEdit) return;
+    await sleep(500);
     setData(prevData => {
         const newData = JSON.parse(JSON.stringify(prevData));
         let fileToMove: File | null = null;
@@ -118,10 +234,11 @@ export default function App() {
         }
         return newData;
     });
-  }, []);
+  }, [canEdit]);
 
   const handleAddFile = useCallback(async (targetFolderId: string, newFile: Omit<File, 'id' | 'lastModified' | 'previewUrl'>): Promise<void> => {
-    await sleep(1000); // Simulate upload delay
+    if (!canEdit) return;
+    await sleep(1000);
     setData(prevData => {
       const newData = JSON.parse(JSON.stringify(prevData));
       const targetFolder = findFolderById(newData, targetFolderId);
@@ -133,17 +250,17 @@ export default function App() {
           previewUrl: `https://picsum.photos/seed/${Date.now()}/400/300`,
         };
         targetFolder.files.push(file);
-        // If file was added to a different folder, navigate to it
         if(targetFolderId !== activeFolderId) {
             setActiveFolderId(targetFolderId);
         }
       }
       return newData;
     });
-  }, [activeFolderId]);
+  }, [activeFolderId, canEdit]);
 
   const handleDeleteFile = useCallback(async (fileId: string): Promise<void> => {
-    await sleep(500); // Simulate network delay
+    if (!canEdit) return;
+    await sleep(500);
     setData(prevData => {
       const newData = JSON.parse(JSON.stringify(prevData));
       const parentFolder = findParentFolder(newData, fileId);
@@ -152,10 +269,11 @@ export default function App() {
       }
       return newData;
     });
-  }, []);
+  }, [canEdit]);
 
   const handleAddFolder = useCallback(async (parentId: string, folderName: string, details: Partial<Folder>): Promise<void> => {
-    await sleep(500); // Simulate network delay
+    if (!canEdit) return;
+    await sleep(500);
     setData(prevData => {
       const newData = JSON.parse(JSON.stringify(prevData));
       const parentFolder = findFolderById(newData, parentId);
@@ -190,10 +308,11 @@ export default function App() {
       }
       return newData;
     });
-  }, []);
+  }, [canEdit]);
 
   const handleUpdateFolder = useCallback(async (folderId: string, updates: Partial<Folder>): Promise<void> => {
-    await sleep(500); // Simulate network delay
+    if (!canEdit) return;
+    await sleep(500);
     setData(prevData => {
       const newData = JSON.parse(JSON.stringify(prevData));
       const folderToUpdate = findFolderById(newData, folderId);
@@ -216,7 +335,37 @@ export default function App() {
       }
       return newData;
     });
-  }, []);
+  }, [canEdit]);
+
+  const handleDeleteFolder = useCallback(async (folderId: string): Promise<void> => {
+    if (!canEdit) return;
+    await sleep(500);
+    setData(prevData => {
+      const newData = JSON.parse(JSON.stringify(prevData));
+      const findAndRemove = (root: Folder): boolean => {
+        const index = root.subFolders.findIndex(f => f.id === folderId);
+        if (index > -1) {
+          root.subFolders.splice(index, 1);
+          return true;
+        }
+        for (const sub of root.subFolders) {
+          if (findAndRemove(sub)) return true;
+        }
+        return false;
+      };
+      
+      const parent = path[path.length - 2];
+      findAndRemove(newData);
+      
+      if (activeFolderId === folderId && parent) {
+        setActiveFolderId(parent.id);
+      } else if (activeFolderId === folderId) {
+        setActiveFolderId('root');
+      }
+      
+      return newData;
+    });
+  }, [canEdit, path, activeFolderId]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -256,9 +405,9 @@ export default function App() {
   };
 
   const handleSearchResultClick = (result: SearchResultItem) => {
-    if ('subFolders' in result.item) { // It's a Folder
+    if ('subFolders' in result.item) {
       setActiveFolderId(result.item.id);
-    } else { // It's a File
+    } else {
       const parent = findParentFolder(data, result.item.id);
       if (parent) {
         setActiveFolderId(parent.id);
@@ -269,9 +418,39 @@ export default function App() {
   
   const handleMenuClick = () => setMobileMenuOpen(true);
 
+  if (!isAuthenticated || !isAIInitialized) {
+    return (
+      <LoginView 
+        onLogin={handleLogin} 
+        onSignUp={handleSignUp}
+        onResetPassword={handleResetPassword}
+        onInitializeAI={handleInitializeAI}
+        isAuthenticated={isAuthenticated}
+        isAIInitialized={isAIInitialized}
+      />
+    );
+  }
+
   const renderContent = () => {
     if (activeFolderId === 'settings') {
-      return <SettingsPage theme={theme} setTheme={setTheme} isMobile={isMobile} onMenuClick={handleMenuClick} />;
+      return (
+        <SettingsPage 
+          theme={theme} 
+          setTheme={setTheme} 
+          isMobile={isMobile} 
+          onMenuClick={handleMenuClick} 
+          currentUser={currentUser!} 
+          setCurrentUser={(u) => {
+             const user = u as UserAccount;
+             setCurrentUser(user);
+             setUsers(prev => prev.map(p => p.id === user.id ? user : p));
+          }} 
+          allUsers={users}
+          onApproveUser={handleApproveUser}
+          onRejectUser={handleRejectUser}
+          onSignOut={handleSignOut}
+        />
+      );
     }
 
     if (activeFolderId === 'root' || searchQuery) {
@@ -288,6 +467,7 @@ export default function App() {
           onClearSearch={handleClearSearch}
           isMobile={isMobile}
           onMenuClick={handleMenuClick}
+          canEdit={canEdit}
         />
       );
     }
@@ -310,13 +490,15 @@ export default function App() {
           onDeleteFile={handleDeleteFile}
           onAddFolder={handleAddFolder}
           onUpdateFolder={handleUpdateFolder}
+          onDeleteFolder={handleDeleteFolder}
           onMenuClick={handleMenuClick}
           isMobile={isMobile}
+          canEdit={canEdit}
         />
       );
     }
 
-    return null; // or a loading/error component
+    return null;
   };
   
   const mainContentMargin = isMobile ? 'ml-0' : (isSidebarCollapsed ? 'ml-16' : 'ml-64');
@@ -332,6 +514,7 @@ export default function App() {
         isMobile={isMobile}
         isMobileMenuOpen={isMobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
+        currentUser={currentUser!}
       />
       <div className={`flex-1 transition-all duration-300 ${mainContentMargin}`}>
         {renderContent()}

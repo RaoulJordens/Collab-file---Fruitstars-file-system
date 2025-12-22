@@ -8,7 +8,8 @@ interface DialogProps {
     onOpenChange: (isOpen: boolean) => void;
     title: string;
     description: string;
-    children: ReactNode;
+    // Fix: Make children optional to resolve compiler issues with JSX nested elements
+    children?: ReactNode;
     dialogClassName?: string;
     showCloseButton?: boolean;
 }
@@ -41,13 +42,17 @@ export const Dialog = ({ title, description, children, isOpen, onOpenChange, dia
 // BUTTON
 interface ButtonProps {
     onClick?: React.MouseEventHandler<HTMLButtonElement>;
-    children: ReactNode;
+    // Fix: Make children optional to resolve compiler issues with JSX nested elements
+    children?: ReactNode;
     variant?: 'primary' | 'secondary' | 'destructive';
     disabled?: boolean;
     isLoading?: boolean;
     className?: string;
+    // Add type property to support 'submit' and 'button' types
+    type?: 'button' | 'submit' | 'reset';
 }
-export const Button = ({ onClick, children, variant = 'primary', disabled = false, isLoading = false, className = '' }: ButtonProps) => {
+// Pass through the 'type' prop to the native button element
+export const Button = ({ onClick, children, variant = 'primary', disabled = false, isLoading = false, className = '', type = 'button' }: ButtonProps) => {
     const baseClasses = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium h-10 px-4 py-2 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
     const variantClasses = {
         primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -55,7 +60,7 @@ export const Button = ({ onClick, children, variant = 'primary', disabled = fals
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
     };
     return (
-        <button onClick={onClick} disabled={disabled || isLoading} className={`${baseClasses} ${variantClasses[variant]} ${className}`}>
+        <button type={type} onClick={onClick} disabled={disabled || isLoading} className={`${baseClasses} ${variantClasses[variant]} ${className}`}>
             {isLoading && <Spinner className="mr-2 h-4 w-4" />}
             {children}
         </button>
@@ -66,7 +71,8 @@ export const Button = ({ onClick, children, variant = 'primary', disabled = fals
 interface FormFieldProps {
     label: string;
     htmlFor?: string;
-    children: ReactNode;
+    // Fix: Make children optional to resolve compiler issues with JSX nested elements
+    children?: ReactNode;
 }
 export const FormField = ({ label, htmlFor, children }: FormFieldProps) => (
     <div className="grid w-full items-center gap-1.5">
@@ -76,6 +82,7 @@ export const FormField = ({ label, htmlFor, children }: FormFieldProps) => (
 );
 
 // INPUT
+// Fix: Added 'required' property to InputProps to support form validation and resolve type errors in LoginView
 interface InputProps {
     id?: string;
     value: string;
@@ -84,8 +91,10 @@ interface InputProps {
     type?: string;
     className?: string;
     onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+    required?: boolean;
 }
-export const Input = ({ id, value, onChange, placeholder, type = 'text', className = '', onKeyDown }: InputProps) => (
+// Fix: Destructured 'required' and passed it to the native input element
+export const Input = ({ id, value, onChange, placeholder, type = 'text', className = '', onKeyDown, required }: InputProps) => (
     <input
         id={id}
         type={type}
@@ -93,6 +102,7 @@ export const Input = ({ id, value, onChange, placeholder, type = 'text', classNa
         onChange={onChange}
         placeholder={placeholder}
         onKeyDown={onKeyDown}
+        required={required}
         className={`mt-1 block w-full bg-input border-border rounded-md px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${className}`}
     />
 );
@@ -103,7 +113,8 @@ interface SelectProps {
     value: string | undefined;
     onChange: (e: ChangeEvent<HTMLSelectElement>) => void;
     disabled?: boolean;
-    children: ReactNode;
+    // Fix: Make children optional to resolve compiler issues with JSX nested elements
+    children?: ReactNode;
 }
 export const Select = ({ id, value, onChange, disabled, children }: SelectProps) => (
     <select
@@ -123,7 +134,8 @@ interface ListboxProps {
     value: string;
     onChange: (e: ChangeEvent<HTMLSelectElement>) => void;
     disabled?: boolean;
-    children: ReactNode;
+    // Fix: Make children optional to resolve compiler issues with JSX nested elements
+    children?: ReactNode;
     size?: number;
 }
 export const Listbox = ({ id, value, onChange, disabled, children, size = 5 }: ListboxProps) => (
