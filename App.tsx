@@ -19,29 +19,9 @@ interface UserAccount extends Collaborator {
   status: 'Approved' | 'Pending';
 }
 
-const ADMIN_EMAIL = 'sales@fruitstars.net';
-const ADMIN_PASS = 'SaxEde98!';
-
-const INITIAL_USERS: UserAccount[] = [
-  {
-    id: 'admin-1',
-    name: 'Admin Sales',
-    email: ADMIN_EMAIL,
-    password: ADMIN_PASS,
-    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin',
-    role: 'Owner',
-    status: 'Approved'
-  },
-  {
-    id: 'u1',
-    name: 'Alex Doe',
-    email: 'alex.doe@fruitstars.com',
-    password: 'password123',
-    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex',
-    role: 'Edit',
-    status: 'Approved' 
-  }
-];
+// Hardcoded credentials removed for security. 
+// The first user to sign up becomes the Admin (Owner).
+const INITIAL_USERS: UserAccount[] = [];
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -95,20 +75,34 @@ export default function App() {
     if (users.some(u => u.email === email)) {
       throw new Error("User already exists with this email.");
     }
+
+    // BOOTSTRAP LOGIC: First user is automatically Approved and becomes the Owner.
+    const isFirstUser = users.length === 0;
+
     const newUser: UserAccount = {
       id: `user-${Date.now()}`,
       name,
       email,
       password,
       avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
-      role: 'View',
-      status: 'Pending'
+      role: isFirstUser ? 'Owner' : 'View',
+      status: isFirstUser ? 'Approved' : 'Pending'
     };
+    
     setUsers(prev => [...prev, newUser]);
+    
+    if (isFirstUser) {
+        // Auto-login for the bootstrap admin
+        setCurrentUser(newUser);
+        setIsAuthenticated(true);
+    }
   };
 
   const handleResetPassword = async (email: string, newPassword?: string) => {
     await sleep(1000);
+    const userExists = users.some(u => u.email === email);
+    if (!userExists) throw new Error("No account found with that email address.");
+    
     setUsers(prev => prev.map(u => u.email === email ? { ...u, password: newPassword } : u));
   };
 

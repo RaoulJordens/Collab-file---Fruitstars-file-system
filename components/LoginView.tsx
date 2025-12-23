@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { FruitstarsIcon, Spinner } from './Icons';
+import { FruitstarsIcon } from './Icons';
 import { Button, Input, FormField } from './UI';
 
 interface LoginViewProps {
@@ -16,9 +16,9 @@ type AuthMode = 'login' | 'signup' | 'forgot' | 'reset-sent' | 'pending-approval
 
 export function LoginView({ onLogin, onSignUp, onResetPassword, onInitializeAI, isAuthenticated, isAIInitialized }: LoginViewProps) {
   const [mode, setMode] = useState<AuthMode>('login');
-  const [email, setEmail] = useState('sales@fruitstars.net');
+  const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [password, setPassword] = useState('SaxEde98!');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   
   const [isBusy, setIsBusy] = useState(false);
@@ -34,6 +34,8 @@ export function LoginView({ onLogin, onSignUp, onResetPassword, onInitializeAI, 
             await onLogin(email, password);
         } else if (mode === 'signup') {
             await onSignUp(name, email, password);
+            // If they are first user, App.tsx will auto-log them in, 
+            // but if they are 2nd+ user, we show pending approval.
             setMode('pending-approval');
         } else if (mode === 'forgot') {
             await onResetPassword(email, 'NewPassword123!'); // Mocking password change to a default
@@ -80,7 +82,7 @@ export function LoginView({ onLogin, onSignUp, onResetPassword, onInitializeAI, 
                   ? "Verify your API billing connection to enable dossier automation." 
                   : (
                     mode === 'login' ? "Secure file management for fruit logistics professionals." :
-                    mode === 'signup' ? "Create a new employee profile for the logistics system." :
+                    mode === 'signup' ? "First user to register will be granted Admin status automatically." :
                     mode === 'forgot' ? "Enter your email to receive a simulated recovery link." :
                     mode === 'reset-sent' ? "We've simulated a reset. Your new password is 'NewPassword123!'." :
                     "Your registration is awaiting verification by the IT team."
@@ -141,7 +143,7 @@ export function LoginView({ onLogin, onSignUp, onResetPassword, onInitializeAI, 
                             className="w-full h-11 text-base font-semibold bg-gradient-to-r from-primary to-primary/80"
                             isLoading={isBusy}
                         >
-                            {mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Request Access' : 'Recover Account'}
+                            {mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create First Account' : 'Recover Account'}
                         </Button>
                         
                         <div className="flex flex-col gap-2 pt-2">
